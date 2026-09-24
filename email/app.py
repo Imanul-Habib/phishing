@@ -2,6 +2,7 @@ import re
 from pathlib import Path
 from io import BytesIO
 from urllib.parse import urlparse
+from urllib.request import urlopen
 
 import pandas as pd
 import streamlit as st
@@ -188,16 +189,29 @@ with st.sidebar:
         )
         mail_bytes = mail_upload.getvalue() if mail_upload is not None else None
 
+    # The URL dataset is stored as a public GitHub Release asset because
+    # it is too large for a normal GitHub web upload.
+    url_data_url = (
+        "https://github.com/rajashree2407/phishing/releases/download/"
+        "v1.0-data/malicious_phish.csv"
+    )
+
+    @st.cache_data(show_spinner=False)
+    def load_remote_dataset(url):
+        with urlopen(url, timeout=120) as response:
+            return response.read()
+
     if url_path.exists():
         url_bytes = url_path.read_bytes()
         st.success("malicious_phish.csv loaded automatically.")
     else:
-        url_upload = st.file_uploader(
-            "malicious_phish.csv",
-            type=["csv"],
-            help="CSV with url and type columns."
-        )
-        url_bytes = url_upload.getvalue() if url_upload is not None else None
+        try:
+            with st.spinner("Downloading URL dataset..."):
+                url_bytes = load_remote_dataset(url_data_url)
+            st.success("malicious_phish.csv loaded from GitHub.")
+        except Exception as exc:
+            url_bytes = None
+            st.error(f"Could not download malicious_phish.csv: {exc}")
 
     if mail_bytes is None or url_bytes is None:
         st.info(
