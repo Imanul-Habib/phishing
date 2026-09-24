@@ -1,6 +1,8 @@
 import re
+from pathlib import Path
 from io import BytesIO
 from urllib.parse import urlparse
+from urllib.request import urlopen
 
 import pandas as pd
 import streamlit as st
@@ -108,10 +110,19 @@ def train_message_model(data_bytes):
         data["Message"], data["Category"].map(mapping).astype(int),
         test_size=0.2, random_state=3, stratify=data["Category"].map(mapping),
     )
-    vectorizer = TfidfVectorizer(min_df=1, stop_words="english", lowercase=True)
+    vectorizer = TfidfVectorizer(
+        min_df=1,
+        stop_words="english",
+        lowercase=True,
+        ngram_range=(1, 2),
+        sublinear_tf=True,
+    )
     X_train_features = vectorizer.fit_transform(X_train)
     X_test_features = vectorizer.transform(X_test)
-    model = LogisticRegression(max_iter=1000)
+    model = LogisticRegression(
+        max_iter=1000,
+        class_weight="balanced",
+    )
     model.fit(X_train_features, y_train)
     predictions = model.predict(X_test_features)
     return {
@@ -156,12 +167,33 @@ def top_message_contributions(message, vectorizer, model, top_n=8):
     vector = vectorizer.transform([message])
     names = vectorizer.get_feature_names_out()
     values = vector.toarray()[0]
+
     contributions = values * model.coef_[0]
     nonzero = contributions.nonzero()[0]
-    spam = sorted([(names[i], float(contributions[i])) for i in nonzero if contributions[i] > 0],
-                  key=lambda x: x[1], reverse=True)[:top_n]
-    ham = sorted([(names[i], float(contributions[i])) for i in nonzero if contributions[i] < 0],
-                 key=lambda x: x[1])[:top_n]
+
+    # Class 0 = spam, Class 1 = ham.
+    # LogisticRegression coefficients point toward Class 1,
+    # so negative values lean toward spam and positive values lean toward ham.
+    spam = sorted(
+        [
+            (names[i], float(-contributions[i]))
+            for i in nonzero
+            if contributions[i] < 0
+        ],
+        key=lambda x: x[1],
+        reverse=True,
+    )[:top_n]
+
+    ham = sorted(
+        [
+            (names[i], float(contributions[i]))
+            for i in nonzero
+            if contributions[i] > 0
+        ],
+        key=lambda x: x[1],
+        reverse=True,
+    )[:top_n]
+
     return spam, ham
 
 st.title("🛡️ Spam + URL Risk Detector")
@@ -169,15 +201,54 @@ st.caption("TF-IDF + Logistic Regression for message classification, plus a sepa
 
 with st.sidebar:
     st.header("Load datasets")
-    mail_upload = st.file_uploader("mail_data.csv", type=["csv"],
-                                   help="CSV with Category and Message columns.")
-    url_upload = st.file_uploader("malicious_phish.csv", type=["csv"],
-                                  help="CSV with url and type columns.")
-    if mail_upload is None or url_upload is None:
-        st.info("Upload both CSV files to train the models.")
+
+    # Prefer datasets stored beside app.py so the deployed app can load
+    # them automatically without asking visitors to upload them.
+    base_dir = Path(__file__).resolve().parent
+    mail_path = base_dir / "mail_data.csv"
+    url_path = base_dir / "malicious_phish.csv"
+
+    if mail_path.exists():
+        mail_bytes = mail_path.read_bytes()
+        st.success("mail_data.csv loaded automatically.")
+    else:
+        mail_upload = st.file_uploader(
+            "mail_data.csv",
+            type=["csv"],
+            help="CSV with Category and Message columns."
+        )
+        mail_bytes = mail_upload.getvalue() if mail_upload is not None else None
+
+    # The URL dataset is stored as a public GitHub Release asset because
+    # it is too large for a normal GitHub web upload.
+    url_data_url = (
+        "https://github.com/rajashree2407/phishing/releases/download/"
+        "v1.0-data/malicious_phish.csv"
+    )
+
+    @st.cache_data(show_spinner=False)
+    def load_remote_dataset(url):
+        with urlopen(url, timeout=120) as response:
+            return response.read()
+
+    if url_path.exists():
+        url_bytes = url_path.read_bytes()
+        st.success("malicious_phish.csv loaded automatically.")
+    else:
+        try:
+            with st.spinner("Downloading URL dataset..."):
+                url_bytes = load_remote_dataset(url_data_url)
+            st.success("malicious_phish.csv loaded from GitHub.")
+        except Exception as exc:
+            url_bytes = None
+            st.error(f"Could not download malicious_phish.csv: {exc}")
+
+    if mail_bytes is None or url_bytes is None:
+        st.info(
+            "Add both datasets beside app.py to load them automatically, "
+            "or upload both CSV files above."
+        )
         st.stop()
-    mail_bytes = mail_upload.getvalue()
-    url_bytes = url_upload.getvalue()
 
 try:
     with st.spinner("Training message model..."):
