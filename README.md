@@ -2,7 +2,7 @@
 
 ## 🌐 Live Demo
 
-👉 [Open the Live Website](https://phishing-uyfe6aroc3rwznz3azdl.streamlit.app)
+👉 [Open the Live Website](https://phishing-uyfe6aroc3rwrnzsn3azdl.streamlit.app/)
 
 A machine-learning application for detecting spam messages and analyzing URLs for potential risk.
 
