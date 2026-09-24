@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 from io import BytesIO
 from urllib.parse import urlparse
 
@@ -169,15 +170,41 @@ st.caption("TF-IDF + Logistic Regression for message classification, plus a sepa
 
 with st.sidebar:
     st.header("Load datasets")
-    mail_upload = st.file_uploader("mail_data.csv", type=["csv"],
-                                   help="CSV with Category and Message columns.")
-    url_upload = st.file_uploader("malicious_phish.csv", type=["csv"],
-                                  help="CSV with url and type columns.")
-    if mail_upload is None or url_upload is None:
-        st.info("Upload both CSV files to train the models.")
+
+    # Prefer datasets stored beside app.py so the deployed app can load
+    # them automatically without asking visitors to upload them.
+    base_dir = Path(__file__).resolve().parent
+    mail_path = base_dir / "mail_data.csv"
+    url_path = base_dir / "malicious_phish.csv"
+
+    if mail_path.exists():
+        mail_bytes = mail_path.read_bytes()
+        st.success("mail_data.csv loaded automatically.")
+    else:
+        mail_upload = st.file_uploader(
+            "mail_data.csv",
+            type=["csv"],
+            help="CSV with Category and Message columns."
+        )
+        mail_bytes = mail_upload.getvalue() if mail_upload is not None else None
+
+    if url_path.exists():
+        url_bytes = url_path.read_bytes()
+        st.success("malicious_phish.csv loaded automatically.")
+    else:
+        url_upload = st.file_uploader(
+            "malicious_phish.csv",
+            type=["csv"],
+            help="CSV with url and type columns."
+        )
+        url_bytes = url_upload.getvalue() if url_upload is not None else None
+
+    if mail_bytes is None or url_bytes is None:
+        st.info(
+            "Add both datasets beside app.py to load them automatically, "
+            "or upload both CSV files above."
+        )
         st.stop()
-    mail_bytes = mail_upload.getvalue()
-    url_bytes = url_upload.getvalue()
 
 try:
     with st.spinner("Training message model..."):
