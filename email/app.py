@@ -110,10 +110,19 @@ def train_message_model(data_bytes):
         data["Message"], data["Category"].map(mapping).astype(int),
         test_size=0.2, random_state=3, stratify=data["Category"].map(mapping),
     )
-    vectorizer = TfidfVectorizer(min_df=1, stop_words="english", lowercase=True)
+    vectorizer = TfidfVectorizer(
+        min_df=1,
+        stop_words="english",
+        lowercase=True,
+        ngram_range=(1, 2),
+        sublinear_tf=True,
+    )
     X_train_features = vectorizer.fit_transform(X_train)
     X_test_features = vectorizer.transform(X_test)
-    model = LogisticRegression(max_iter=1000)
+    model = LogisticRegression(
+        max_iter=1000,
+        class_weight="balanced",
+    )
     model.fit(X_train_features, y_train)
     predictions = model.predict(X_test_features)
     return {
@@ -158,12 +167,33 @@ def top_message_contributions(message, vectorizer, model, top_n=8):
     vector = vectorizer.transform([message])
     names = vectorizer.get_feature_names_out()
     values = vector.toarray()[0]
+
     contributions = values * model.coef_[0]
     nonzero = contributions.nonzero()[0]
-    spam = sorted([(names[i], float(contributions[i])) for i in nonzero if contributions[i] > 0],
-                  key=lambda x: x[1], reverse=True)[:top_n]
-    ham = sorted([(names[i], float(contributions[i])) for i in nonzero if contributions[i] < 0],
-                 key=lambda x: x[1])[:top_n]
+
+    # Class 0 = spam, Class 1 = ham.
+    # LogisticRegression coefficients point toward Class 1,
+    # so negative values lean toward spam and positive values lean toward ham.
+    spam = sorted(
+        [
+            (names[i], float(-contributions[i]))
+            for i in nonzero
+            if contributions[i] < 0
+        ],
+        key=lambda x: x[1],
+        reverse=True,
+    )[:top_n]
+
+    ham = sorted(
+        [
+            (names[i], float(contributions[i]))
+            for i in nonzero
+            if contributions[i] > 0
+        ],
+        key=lambda x: x[1],
+        reverse=True,
+    )[:top_n]
+
     return spam, ham
 
 st.title("🛡️ Spam + URL Risk Detector")
