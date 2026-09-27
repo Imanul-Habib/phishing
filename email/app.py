@@ -344,9 +344,13 @@ with tab_detector:
 
         c1, c2 = st.columns(2)
         c1.metric("Risk level", risk_result["risk_label"])
-        c2.metric("Risk score", risk_result["risk_score"])
-        if "risk_score" in risk_result
-        else c2.metric("RF confidence", f'{risk_result.get("model_probability", 0):.1%}')
+        if "risk_score" in risk_result:
+            c2.metric("Risk score", risk_result["risk_score"])
+        else:
+            c2.metric(
+                "RF confidence",
+                f'{risk_result.get("model_probability", 0):.1%}',
+            )
 
         st.markdown("#### Why was this risk level assigned?")
         if risk_result["signals"]:
