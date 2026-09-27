@@ -6,6 +6,8 @@
 
 A student-built machine-learning application for detecting spam/phishing messages, analyzing URLs, and producing an interpretable **LOW / MEDIUM / HIGH risk assessment**.
 
+📘 **Technical documentation:** [DOCUMENTATION.md](./DOCUMENTATION.md) — approach, model choices, feature engineering, risk engine, evaluation, limitations, and setup.
+
 ## ✨ Features
 
 - Spam/Ham message classification with TF-IDF + Logistic Regression
