@@ -1,0 +1,33 @@
+{
+  "dataset_rows": 7996,
+  "accuracy": 0.8975,
+  "macro_f1": 0.9084954522467695,
+  "class_f1": {
+    "LOW": 0.8540734109221128,
+    "MEDIUM": 0.8726708074534162,
+    "HIGH": 0.9987421383647799
+  },
+  "class_counts": {
+    "LOW": 2747,
+    "MEDIUM": 3260,
+    "HIGH": 1989
+  },
+  "confusion_matrix": [
+    [
+      477,
+      73,
+      0
+    ],
+    [
+      90,
+      562,
+      0
+    ],
+    [
+      0,
+      1,
+      397
+    ]
+  ],
+  "note": "Evaluation is against engineered refined-v2 risk labels, not manually verified ground truth."
+}
