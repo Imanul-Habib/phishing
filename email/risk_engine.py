@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import joblib
+import pandas as pd
 
 MODEL_PATH = Path(__file__).resolve().parent / "risk_engine_rf_v4_9000.joblib"
 
