@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PhishGuard — Email Risk Analyzer</title>
+<meta name="description" content="Student ML project for phishing, spam and URL risk analysis.">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<main class="shell">
+<nav class="nav"><div class="brand"><span class="shield">◆</span> PhishGuard</div><a href="https://phishing-uyfe6aroc3rwrnzsn3azdl.streamlit.app/" target="_blank" rel="noreferrer">Open full ML demo ↗</a></nav>
+<section class="hero"><div class="eyebrow">AI / ML SECURITY PROJECT</div><h1>Catch the message<br><span>before it catches you.</span></h1><p>Paste a suspicious email and get an explainable risk assessment based on phishing probability, URLs, urgency, credential requests and other behavioral signals.</p></section>
+<section class="analyzer">
+<div class="panel"><div class="panel-head"><span>MESSAGE INPUT</span><span class="hint">Runs locally in your browser</span></div>
+<textarea id="message" placeholder="Paste an email, SMS, or suspicious message here...">URGENT: Your account has been suspended. Verify your password and OTP immediately at https://example-login.xyz/verify.</textarea>
+<button id="analyze">Analyze risk <span>→</span></button></div>
+<div class="panel result" id="result"><div class="empty">Your risk assessment will appear here.</div></div>
+</section>
+<section class="cards">
+<article><strong>01</strong><h3>Message model</h3><p>TF-IDF + Logistic Regression estimates spam/phishing probability.</p></article>
+<article><strong>02</strong><h3>URL analysis</h3><p>Extracts URLs and checks structural indicators used by the URL model.</p></article>
+<article><strong>03</strong><h3>Risk engine</h3><p>Combines multiple signals into LOW / MEDIUM / HIGH with reasons.</p></article>
+</section>
+<footer><span>Academic prototype · not a definitive security verdict</span><a href="https://github.com/Imanul-Habib/phishing" target="_blank" rel="noreferrer">View source ↗</a></footer>
+</main><script src="./app.js"></script>
+</body></html>
