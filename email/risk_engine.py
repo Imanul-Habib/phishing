@@ -6,7 +6,10 @@ training labels, so the repository remains runnable without a binary model.
 """
 from __future__ import annotations
 
+import gzip
+import os
 import re
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +17,11 @@ import joblib
 import pandas as pd
 
 MODEL_PATH = Path(__file__).resolve().parent / "risk_engine_rf_v4_9000.joblib"
+MODEL_GZ_PATH = Path(__file__).resolve().parent / "risk_engine_rf_v4_9000.joblib.gz"
+MODEL_URL = os.getenv(
+    "RISK_MODEL_URL",
+    "https://raw.githubusercontent.com/Imanul-Habib/phishing/main/email/risk_engine_rf_v4_9000.joblib.gz",
+)
 
 PATTERNS = {
     "credential": re.compile(r"password|passcode|credential|login|sign[ -]?in|otp|one[- ]time password|verification code", re.I),
@@ -116,7 +124,7 @@ def predict_trained_risk(message: str, spam_probability: float, url_labels: list
     text = str(message or "")
     labels = [str(x).lower() for x in (url_labels or [])]
     links = re.findall(
-        r"(?:https?://|www\\.)\\S+|\\b(?:[a-z0-9-]+\\.)+(?:com|org|net|edu|gov|io|co|uk|in|xyz|me|app|site)\\b",
+        r"(?:https?://|www\.)\S+|\b(?:[a-z0-9-]+\.)+(?:com|org|net|edu|gov|io|co|uk|in|xyz|me|app|site)\b",
         text,
         re.I,
     )
@@ -128,7 +136,6 @@ def predict_trained_risk(message: str, spam_probability: float, url_labels: list
     action = _count(PATTERNS["action"], text) > 0
     brand = next((b for b in BRANDS if re.search(re.escape(b), text, re.I)), None)
 
-    # Match the feature names used during RF training.
     row: dict[str, Any] = {
         "email_length": len(text),
         "word_count": len(text.split()),
@@ -145,17 +152,13 @@ def predict_trained_risk(message: str, spam_probability: float, url_labels: list
         "domain_age_days": 365.0,
         "contains_link": "Yes" if links else "No",
         "contains_attachment": "No",
-        "is_html_email": "Yes" if re.search(r"<(?:html|body|a|div)\\b", text, re.I) else "No",
+        "is_html_email": "Yes" if re.search(r"<(?:html|body|a|div)\b", text, re.I) else "No",
         "spf_status": "Pass",
         "dkim_status": "Pass",
         "dmarc_status": "Pass",
         "sender_reputation": "Unknown",
         "spoofed_domain": "No",
-        "url_reputation": (
-            "Malicious" if "malicious" in labels else
-            "Suspicious" if "suspicious" in labels else
-            "Safe"
-        ),
+        "url_reputation": ("Malicious" if "malicious" in labels else "Suspicious" if "suspicious" in labels else "Safe"),
         "brand_impersonated": brand or "nan",
     }
 
@@ -187,9 +190,25 @@ def predict_trained_risk(message: str, spam_probability: float, url_labels: list
         "metadata_note": "Live message analysis does not include sender/domain metadata; unavailable fields use neutral/default values.",
     }
 
+
 def load_trained_model(path: str | Path = MODEL_PATH):
-    """Load the trained RF artifact when it has been added to the repo."""
+    """Load the local model, or download the compressed artifact once if needed."""
     path = Path(path)
-    if not path.exists():
+    if path.exists():
+        return joblib.load(path)
+
+    if MODEL_GZ_PATH.exists():
+        with gzip.open(MODEL_GZ_PATH, "rb") as fh:
+            model_bytes = fh.read()
+        path.write_bytes(model_bytes)
+        return joblib.load(path)
+
+    cache_path = Path("/tmp/risk_engine_rf_v4_9000.joblib")
+    try:
+        if not cache_path.exists():
+            urllib.request.urlretrieve(MODEL_URL, "/tmp/risk_engine_rf_v4_9000.joblib.gz")
+            with gzip.open("/tmp/risk_engine_rf_v4_9000.joblib.gz", "rb") as fh:
+                cache_path.write_bytes(fh.read())
+        return joblib.load(cache_path)
+    except Exception:
         return None
-    return joblib.load(path)
