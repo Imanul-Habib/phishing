@@ -13,7 +13,7 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
-from risk_engine import extract_risk_signals
+from risk_engine import extract_risk_signals, predict_trained_risk
 
 st.set_page_config(page_title="Spam + URL Risk Detector", page_icon="🛡️", layout="wide")
 
@@ -330,7 +330,11 @@ with tab_detector:
             "reputation lookup or a definitive phishing verdict."
         )
 
-        risk_result = extract_risk_signals(
+        risk_result = predict_trained_risk(
+            message=message,
+            spam_probability=spam_probability,
+            url_labels=url_labels,
+        ) or extract_risk_signals(
             message=message,
             spam_probability=spam_probability,
             url_labels=url_labels,
@@ -341,6 +345,8 @@ with tab_detector:
         c1, c2 = st.columns(2)
         c1.metric("Risk level", risk_result["risk_label"])
         c2.metric("Risk score", risk_result["risk_score"])
+        if "risk_score" in risk_result
+        else c2.metric("RF confidence", f'{risk_result.get("model_probability", 0):.1%}')
 
         st.markdown("#### Why was this risk level assigned?")
         if risk_result["signals"]:
@@ -348,6 +354,12 @@ with tab_detector:
                 st.write("•", signal)
         else:
             st.write("No major risk signals detected.")
+
+        if risk_result.get("model_source"):
+            st.caption(
+                f'Prediction source: {risk_result["model_source"]}. '
+                "The live message does not provide sender/domain metadata, so unavailable fields use defaults."
+            )
 
         st.info(
             "Do not use the risk level as a definitive security or legal verdict. "
