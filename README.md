@@ -2,7 +2,7 @@
 
 ## 🌐 Live Demo
 
-👉 [Open the Streamlit ML demo](https://phishing-uyfe6aroc3rwrnzsn3azdl.streamlit.app/)
+👉 [Open the Streamlit ML demo](https://phishing-4uzc2mrxxqyg99rhxmvflu.streamlit.app/)
 
 A student-built machine-learning application for detecting spam/phishing messages, analyzing URLs, and producing an interpretable **LOW / MEDIUM / HIGH risk assessment**.
 
