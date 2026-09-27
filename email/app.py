@@ -13,6 +13,8 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
+from risk_engine import extract_risk_signals
+
 st.set_page_config(page_title="Spam + URL Risk Detector", page_icon="🛡️", layout="wide")
 
 URL_START_RE = re.compile(r"^(?:https?://|www\.)", re.IGNORECASE)
@@ -297,17 +299,61 @@ with tab_detector:
 
         st.markdown("### URL analysis")
         urls = extract_urls_from_message(message)
-        if not urls:
+        rows = []
+        url_labels = []
+
+        for url in urls:
+            features = pd.DataFrame(
+                [url_to_features(url)],
+                columns=URL_FEATURE_COLUMNS,
+            )
+            code = int(url_bundle["model"].predict(features)[0])
+            label = str(url_bundle["encoder"].inverse_transform([code])[0])
+
+            url_labels.append(label)
+            rows.append({
+                "URL": url,
+                "URL model classification": label,
+            })
+
+        if not rows:
             st.info("No URL was extracted from this message.")
         else:
-            rows = []
-            for url in urls:
-                features = pd.DataFrame([url_to_features(url)], columns=URL_FEATURE_COLUMNS)
-                code = int(url_bundle["model"].predict(features)[0])
-                label = url_bundle["encoder"].inverse_transform([code])[0]
-                rows.append({"URL": url, "URL model classification": str(label)})
-            st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
-        st.warning("URL results are model outputs from the supplied dataset, not a live reputation lookup or a definitive phishing verdict.")
+            st.dataframe(
+                pd.DataFrame(rows),
+                hide_index=True,
+                use_container_width=True,
+            )
+
+        st.warning(
+            "URL results are model outputs from the supplied dataset, not a live "
+            "reputation lookup or a definitive phishing verdict."
+        )
+
+        risk_result = extract_risk_signals(
+            message=message,
+            spam_probability=spam_probability,
+            url_labels=url_labels,
+        )
+
+        st.markdown("### 🛡️ Overall Risk Assessment")
+
+        c1, c2 = st.columns(2)
+        c1.metric("Risk level", risk_result["risk_label"])
+        c2.metric("Risk score", risk_result["risk_score"])
+
+        st.markdown("#### Why was this risk level assigned?")
+        if risk_result["signals"]:
+            for signal in risk_result["signals"]:
+                st.write("•", signal)
+        else:
+            st.write("No major risk signals detected.")
+
+        st.info(
+            "Do not use the risk level as a definitive security or legal verdict. "
+            "For suspicious messages, verify the sender through an independent "
+            "channel before clicking links or sharing sensitive information."
+        )
 
 with tab_metrics:
     st.subheader("Message model")
